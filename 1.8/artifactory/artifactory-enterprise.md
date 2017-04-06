@@ -40,6 +40,9 @@ Be sure to:
 {
   "service": {
     "name": "artifactory",
+    "cpus": 2,
+    "mem": 2048,
+    "nodes": 1,
     "licenses": "replaceme",
     "host-volume": "/var/artifactory",
     "database": {
@@ -51,10 +54,24 @@ Be sure to:
       "password": "jfrogdcos"
     }
   },
+  "pro": {
+    "external-volumes": {
+      "enabled": false,
+      "provider": "dvdi",
+      "driver": "rexray"
+    }
+  },
   "enterprise": {
-    "enabled": true
+    "enabled": true,
+    "secondary": {
+      "enabled": false,
+      "unique-nodes": true,
+      "nodes": 1,
+      "name": "artifactory"
+    }
   }
 }
+
 ```
 
 
@@ -64,23 +81,68 @@ Be sure to:
 dcos package install --options=artifactory-enterprise-options.json artifactory
 ```
 
-3. Check that Artifactory is up and running successfully by checking the "Services" tab of DC/OS.
+3. Adding Secondary node to Artifactory Enterprise cluster:
+
+    3.1 Create a new file called `artifactory-secondary-options.json` with the following content.
+    Be sure to:
+    - replace `service.licenses` with your own license string (only one node's license is required here, the rest can be configured in the Artifactory UI)
+    - replace `service.database.user` and `service.database.password` with the correct credentials if you have customised these
+    - replace `artdb` within `service.database.url` with the correct database name if you have used a different one
+   ```
+    {
+      "service": {
+        "name": "artifactory-secondary",
+        "cpus": 2,
+        "mem": 2048,
+        "nodes": 1,
+        "licenses": "replaceme",
+        "host-volume": "/var/artifactory",
+        "database": {
+          "type": "mysql",
+          "host": "mysql.marathon.mesos",
+          "port": 3306,
+          "url": "jdbc:mysql://mysql.marathon.mesos:3306/DATABASE_NAME?characterEncoding=UTF-8&elideSetAutoCommits=true",
+          "user": "jfrogdcos",
+          "password": "jfrogdcos"
+        }
+      },
+      "pro": {
+        "external-volumes": {
+          "enabled": false,
+          "provider": "dvdi",
+          "driver": "rexray"
+        }
+      },
+      "enterprise": {
+        "enabled": true,
+        "secondary": {
+          "enabled": false,
+          "unique-nodes": true,
+          "nodes": 1,
+          "name": "artifactory"
+        }
+      }
+    }
+   ```
+   
+   3.2 Install artifactory secondary using DC/OS CLI
+   ```
+    dcos package install --options=artifactory-secondary-options.json artifactory
+   ```
+
+4. Check that Artifactory is up and running successfully by checking the "Services" tab of DC/OS.
 
 ## Install Artifactory-lb
 
 Once Artifactory is up and running, [follow this guide to set up Artifactory-lb](artifactory-lb.md).
-
+ 
 ## Scaling Artifactory Enterprise
 
 To make Artifactory Enterprise highly available, simply add licenses and scale the application up!
 
-1. Add more licenses for secondary nodes in Artifactory UI:
+1. Add more licenses for secondary nodes from Artifactory UI:
 
 ![Add More Licenses](img/add_licenses.png)
 
-2. Run the following DC/OS CLI command to scale Artifactory Enterprise to 2 instances:
-
-```
-dcos marathon app update artifactory instances=2
-```
-
+2. Scale secondary instances by running following command:
+    `dcos marathon app update artifactory-secondary instances=2`
